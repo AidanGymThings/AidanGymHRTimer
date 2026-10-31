@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EQUILIBRIUM GYM + FITNESS | HR Telemetry & Class Timer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#FFFFFF',
+                            goldLight: '#F0F0F0',
+                            dark: '#0B0C10',
+                            card: '#14161C',
+                            rest: '#FFB300',
+                            cyan: '#00E5FF',
+                            accent: '#1F232D'
+                        },
+                        zone: {
+                            blue: '#29B6F6',   <!-- Zone 1/2: Light/Moderate -->
+                            green: '#66BB6A',  <!-- Zone 3: Aerobic -->
+                            amber: '#FFA726',  <!-- Zone 4: Threshold -->
+                            red: '#EF5350'     <!-- Zone 5: Maximum -->
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Bebas Neue', 'sans-serif'],
+                        sans: ['Bebas Neue', 'sans-serif'],
+                        timer: ['Bebas Neue', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B0C10;
+            color: #FFFFFF;
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 0.05em;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .glass-panel {
+            background: rgba(20, 22, 28, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Custom Scrollbar for Grid/Drawers */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0C10;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F232D;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FFFFFF;
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.02); }
+        }
+        .pulse-active {
+            animation: subtlePulse 2s infinite ease-in-out;
+        }
+
+        .hr-card-red { border-color: #EF5350; background: linear-gradient(135deg, rgba(239, 83, 80, 0.15) 0%, rgba(20,22,28,0.85) 100%); }
+        .hr-card-amber { border-color: #FFA726; background: linear-gradient(135deg, rgba(255, 167, 38, 0.15) 0%, rgba(20,22,28,0.85) 100%); }
+        .hr-card-green { border-color: #66BB6A; background: linear-gradient(135deg, rgba(102, 187, 106, 0.15) 0%, rgba(20,22,28,0.85) 100%); }
+        .hr-card-blue { border-color: #29B6F6; background: linear-gradient(135deg, rgba(41, 182, 246, 0.15) 0%, rgba(20,22,28,0.85) 100%); }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden relative">
+
+    <!-- TOP BRANDING HEADER -->
+    <header class="w-full py-2.5 px-6 flex items-center justify-between border-b border-white/10 bg-black/40 z-20 shrink-0">
+        <div class="flex items-center gap-4">
+            <!-- Official Equilibrium Logo Vector -->
+            <div class="h-9 md:h-11 flex items-center">
+                <svg viewBox="0 0 500 100" class="h-full w-auto fill-white" xmlns="http://www.w3.org/2000/svg">
+                    <text x="250" y="58" font-family="'Playfair Display', 'Didot', 'Bodoni MT', serif" font-size="64" font-weight="900" letter-spacing="3" text-anchor="middle">EQUILIBRIUM</text>
+                    <text x="250" y="92" font-family="'Montserrat', 'Inter', sans-serif" font-size="22" font-weight="700" letter-spacing="12" text-anchor="middle" fill="#E0E0E0">GYM + FITNESS</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="hidden lg:flex items-center gap-4 border-r border-white/10 pr-4">
+                <div class="text-right">
+                    <span class="text-[10px] text-gray-400 uppercase font-bold tracking-widest block">TOTAL GROUP CALORIES</span>
+                    <span id="totalGroupCaloriesHeader" class="text-2xl font-black text-brand-gold">0 KCAL</span>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-2">
+                <button onclick="openLeaderboardModal()" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold tracking-wider text-xs md:text-sm flex items-center gap-2 transition-all border border-white/10" title="View Workout Leaderboard">
+                    <i class="fa-solid fa-trophy text-amber-400"></i>
+                    <span>LEADERBOARD</span>
+                </button>
+                <button onclick="pairPolarDevice()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold tracking-wider text-xs md:text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-bluetooth-b"></i>
+                    <span>PAIR POLAR HR</span>
+                </button>
+                <button onclick="addSimulatedAthlete()" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs md:text-sm font-bold tracking-wider" title="Add Demo Athlete Tile">
+                    + DEMO HR
+                </button>
+                <button id="soundToggleBtn" onclick="toggleAudio()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all" title="Toggle Sound">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-sm text-white"></i>
+                </button>
+                <button onclick="toggleFullscreen()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all" title="Toggle Fullscreen">
+                    <i class="fa-solid fa-expand text-sm"></i>
+                </button>
+                <button onclick="toggleSettingsDrawer()" class="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-200 text-black font-bold tracking-wider text-xs md:text-sm flex items-center gap-2 transition-all shadow-lg shadow-white/20">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>SETUP</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN TV TWO-COLUMN DISPLAY AREA -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-3 md:p-5 items-stretch overflow-hidden z-10 min-h-0">
+
+        <!-- LEFT PANEL: WORKOUT BOARD + TIMER UNDERNEATH (6 cols) -->
+        <section class="lg:col-span-6 h-full flex flex-col gap-3 min-h-0">
+            <!-- Workout Board Visual -->
+            <div class="glass-panel rounded-2xl p-3 flex-1 flex flex-col relative overflow-hidden min-h-0">
+                <div class="flex items-center justify-between mb-1.5 border-b border-white/10 pb-1.5 shrink-0">
+                    <span class="text-xs font-extrabold uppercase tracking-widest text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-list"></i> Conditioning Workout Board
+                    </span>
+                    <span id="stationBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider bg-white/10 text-gray-300">
+                        ALL STATIONS
+                    </span>
+                </div>
+
+                <div class="relative flex-1 w-full rounded-xl overflow-hidden bg-black/80 flex items-center justify-center border border-white/5 min-h-0 p-1.5">
+                    <img id="workoutBoardImage" src="" alt="Conditioning Board" class="w-full h-full object-contain max-h-full" />
+                </div>
+            </div>
+
+            <!-- INTEGRATED TIMER & CONTROLS UNDERNEATH BOARD -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3 shrink-0 border-t-2 border-white/20">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span id="stationLabel" class="text-xs font-bold text-gray-400 tracking-widest uppercase block">GENERAL</span>
+                        <h2 id="currentExerciseTitle" class="text-2xl md:text-3xl font-black text-white tracking-wide">WARM UP</h2>
+                    </div>
+
+                    <!-- Target HR Zone Badge for Current Phase -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-400 uppercase font-bold">TARGET ZONE:</span>
+                        <span id="targetZoneBadge" class="px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-zone-green text-black">
+                            GREEN (60-70%)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- TIMER DISPLAY -->
+                <div class="flex items-center justify-between bg-black/50 p-3 rounded-xl border border-white/10">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">STEP <span id="currentStepNum">1</span> / <span id="totalStepsNum">19</span></span>
+                        <span id="totalTimeRemaining" class="text-xs text-gray-300 font-bold mt-1">TOTAL REMAINING: 40:00</span>
+                    </div>
+
+                    <div id="timerDisplay" class="font-timer text-6xl md:text-7xl font-bold text-white tracking-tight leading-none px-4">
+                        07:00
+                    </div>
+                </div>
+
+                <!-- CONTROLS ROW -->
+                <div class="flex items-center gap-3">
+                    <button onclick="prevInterval()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm tracking-wider flex items-center gap-2 border border-white/10">
+                        <i class="fa-solid fa-backward-step"></i>
+                        <span>PREV</span>
+                    </button>
+
+                    <button id="playPauseBtn" onclick="togglePlayPause()" class="flex-1 py-3 rounded-xl bg-white hover:bg-gray-200 text-black font-black text-lg tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-white/10">
+                        <i id="playPauseIcon" class="fa-solid fa-play"></i>
+                        <span id="playPauseText">START TIMER</span>
+                    </button>
+
+                    <button onclick="nextInterval()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm tracking-wider flex items-center gap-2 border border-white/10">
+                        <span>SKIP</span>
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+
+                    <button onclick="resetTimer()" class="px-3.5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-sm border border-red-500/20" title="Reset Workout">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: POLAR HR MONITOR TELEMETRY GRID (6 cols) -->
+        <section class="lg:col-span-6 h-full flex flex-col gap-3 min-h-0">
+            <div class="glass-panel rounded-2xl p-3 flex justify-between items-center shrink-0 border-b border-white/10">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-heart-pulse text-red-500 text-lg animate-pulse"></i>
+                    <h3 class="text-lg font-bold tracking-wider">LIVE HR MONITORING TELEMETRY</h3>
+                </div>
+                <span id="connectedCountBadge" class="text-xs bg-white/10 px-2.5 py-1 rounded-full text-gray-300 font-bold">
+                    0 / 10 ATHLETES CONNECTED
+                </span>
+            </div>
+
+            <!-- Dynamic HR Tiles Grid (Adaptive height and grid columns) -->
+            <div id="hrGridContainer" class="flex-1 grid gap-2 overflow-hidden min-h-0 h-full">
+                <!-- HR Athlete Tiles Dynamically Rendered via JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- PARTICIPANT & HR CONFIGURATION MODAL -->
+    <div id="athleteConfigModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-lg w-full rounded-2xl p-6 border border-white/10 space-y-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-gear text-blue-400"></i> EDIT ATHLETE & HR ZONES
+                </h3>
+                <button onclick="closeAthleteConfigModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="editAthleteId">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Participant Name</label>
+                    <input type="text" id="editAthleteName" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">HR Max (BPM)</label>
+                        <input type="number" id="editAthleteHrMax" onchange="recalculateZonesFromMax()" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Weight (KG)</label>
+                        <input type="number" id="editAthleteWeight" class="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Custom Zone Threshold Config -->
+                <div class="border-t border-white/10 pt-3 space-y-2">
+                    <span class="text-xs font-bold uppercase text-gray-300 block">HR Zone Boundaries (BPM Lower Limits)</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="flex items-center gap-2 bg-blue-900/30 p-2 rounded border border-blue-500/30">
+                            <span class="w-3 h-3 rounded-full bg-zone-blue"></span>
+                            <span>Blue (&gt;= BPM):</span>
+                            <input type="number" id="zoneBlueMin" class="w-14 bg-black text-center text-white border border-white/20 rounded py-0.5 ml-auto">
+                        </div>
+                        <div class="flex items-center gap-2 bg-green-900/30 p-2 rounded border border-green-500/30">
+                            <span class="w-3 h-3 rounded-full bg-zone-green"></span>
+                            <span>Green (&gt;= BPM):</span>
+                            <input type="number" id="zoneGreenMin" class="w-14 bg-black text-center text-white border border-white/20 rounded py-0.5 ml-auto">
+                        </div>
+                        <div class="flex items-center gap-2 bg-amber-900/30 p-2 rounded border border-amber-500/30">
+                            <span class="w-3 h-3 rounded-full bg-zone-amber"></span>
+                            <span>Amber (&gt;= BPM):</span>
+                            <input type="number" id="zoneAmberMin" class="w-14 bg-black text-center text-white border border-white/20 rounded py-0.5 ml-auto">
+                        </div>
+                        <div class="flex items-center gap-2 bg-red-900/30 p-2 rounded border border-red-500/30">
+                            <span class="w-3 h-3 rounded-full bg-zone-red"></span>
+                            <span>Red (&gt;= BPM):</span>
+                            <input type="number" id="zoneRedMin" class="w-14 bg-black text-center text-white border border-white/20 rounded py-0.5 ml-auto">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-white/10">
+                <button onclick="removeAthleteTile()" class="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold rounded text-xs">
+                    Remove Athlete
+                </button>
+                <button onclick="saveAthleteConfig()" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-sm">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST-WORKOUT LEADERBOARD MODAL -->
+    <div id="leaderboardModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-4xl w-full max-h-[90vh] rounded-3xl p-6 border border-white/10 flex flex-col space-y-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-4 shrink-0">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-trophy text-3xl text-amber-400"></i>
+                    <div>
+                        <h2 class="text-3xl font-black tracking-wider text-white">WORKOUT LEADERBOARD SUMMARY</h2>
+                        <span class="text-xs text-gray-400 font-bold tracking-widest uppercase block">EQUILIBRIUM CLASS PERFORMANCE BREAKDOWN</span>
+                    </div>
+                </div>
+                <button onclick="closeLeaderboardModal()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="bg-black/60 p-4 rounded-2xl border border-white/10 flex justify-around items-center text-center shrink-0">
+                <div>
+                    <span class="text-xs text-gray-400 font-bold uppercase tracking-widest block">TOTAL ATHLETES</span>
+                    <span id="lbTotalAthletes" class="text-3xl font-black text-white">0</span>
+                </div>
+                <div class="h-8 w-px bg-white/10"></div>
+                <div>
+                    <span class="text-xs text-gray-400 font-bold uppercase tracking-widest block">TOTAL CALORIES BURNED</span>
+                    <span id="lbTotalCalories" class="text-3xl font-black text-amber-400">0 KCAL</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto min-h-0 border border-white/10 rounded-2xl bg-black/40 p-4">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-white/10 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        <tr>
+                            <th class="pb-3">ATHLETE</th>
+                            <th class="pb-3 text-center">TOTAL CALORIES</th>
+                            <th class="pb-3 text-center">ZONE 5 (RED)</th>
+                            <th class="pb-3 text-center">ZONE 4 (AMBER)</th>
+                            <th class="pb-3 text-center">ZONE 3 (GREEN)</th>
+                            <th class="pb-3 text-center">ZONE 1-2 (BLUE)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTableBody" class="divide-y divide-white/5 font-bold">
+                        <!-- Dynamic Leaderboard Rows -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end shrink-0 pt-2">
+                <button onclick="closeLeaderboardModal()" class="px-6 py-2.5 bg-white text-black font-black rounded-xl text-sm tracking-wider">
+                    CLOSE LEADERBOARD
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETUP & CUSTOMIZATION DRAWER -->
+    <div id="settingsDrawer" class="fixed inset-y-0 right-0 w-full max-w-xl bg-brand-dark/95 backdrop-blur-2xl border-l border-white/10 z-50 transform translate-x-full transition-transform duration-300 ease-in-out p-6 flex flex-col shadow-2xl">
+        <div class="flex items-center justify-between pb-4 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-sliders text-white text-xl"></i>
+                <h2 class="font-serif text-xl font-bold text-white">CLASS SETUP & TIMINGS</h2>
+            </div>
+            <button onclick="toggleSettingsDrawer()" class="p-2 rounded-lg text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-6 space-y-6">
+            <!-- Custom Image Upload Section -->
+            <div class="glass-panel p-4 rounded-xl space-y-3">
+                <h3 class="text-xs font-bold text-white uppercase tracking-widest">Workout Display Image</h3>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-gray-400">Upload Board Image / Photo</label>
+                    <input type="file" id="boardImageInput" accept="image/*" onchange="handleImageUpload(event)" class="text-xs text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white file:text-black hover:file:bg-gray-200 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Interval List & Target Zones -->
+            <div class="glass-panel p-4 rounded-xl space-y-3">
+                <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-widest">Workout Sequence & Target HR Zones</h3>
+                    <button onclick="addNewInterval()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded border border-white/10 flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> ADD STEP
+                    </button>
+                </div>
+                
+                <div id="sequenceList" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    <!-- Dynamic Sequence Editor (Editable Step Names, Times, and Target Zones) -->
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-white/10">
+            <button onclick="saveAndCloseDrawer()" class="w-full py-3 bg-white hover:bg-gray-200 text-black font-extrabold rounded-xl text-sm tracking-wider">
+                SAVE & APPLY CHANGES
+            </button>
+        </div>
+    </div>
+
+    <!-- APPLICATION ENGINE & TELEMETRY SCRIPT -->
+    <script>
+        // --- WORKOUT SCHEDULE WITH TARGET HR ZONES ---
+        const DEFAULT_WORKOUT_SCHEDULE = [
+            { id: 1, name: "Warm Up", phase: "WARM UP", duration: 420, station: "GENERAL", color: "prep", badge: "PREPARE", targetZone: "GREEN", targetZoneDesc: "GREEN (60-70%)" },
+            { id: 2, name: "Briefing", phase: "BRIEFING", duration: 180, station: "GENERAL", color: "prep", badge: "PREPARE", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" },
+            
+            // Round 1
+            { id: 3, name: "Round 1 AMRAP", phase: "WORK - AMRAP 1", duration: 180, station: "STATION A", color: "gold", badge: "STATION A", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 4, name: "Round 1 Midway Rest", phase: "MIDWAY REST", duration: 60, station: "STATION A", color: "rest", badge: "REST", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" },
+            { id: 5, name: "Round 1 Finisher", phase: "FINISHER 1", duration: 120, station: "STATION A", color: "gold", badge: "STATION A", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 6, name: "Rest / Transition", phase: "STATION ROTATION", duration: 60, station: "TRANSITION", color: "rest", badge: "TRANSITION", targetZone: "GREEN", targetZoneDesc: "GREEN (60-70%)" },
+            
+            // Round 2
+            { id: 7, name: "Round 2 AMRAP", phase: "WORK - AMRAP 2", duration: 180, station: "STATION B", color: "gold", badge: "STATION B", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 8, name: "Round 2 Midway Rest", phase: "MIDWAY REST", duration: 60, station: "STATION B", color: "rest", badge: "REST", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" },
+            { id: 9, name: "Round 2 Finisher", phase: "FINISHER 2", duration: 120, station: "STATION B", color: "gold", badge: "STATION B", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 10, name: "Rest / Transition", phase: "STATION ROTATION", duration: 60, station: "TRANSITION", color: "rest", badge: "TRANSITION", targetZone: "GREEN", targetZoneDesc: "GREEN (60-70%)" },
+
+            // Round 3
+            { id: 11, name: "Round 3 AMRAP", phase: "WORK - AMRAP 3", duration: 180, station: "STATION C", color: "gold", badge: "STATION C", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 12, name: "Round 3 Midway Rest", phase: "MIDWAY REST", duration: 60, station: "STATION C", color: "rest", badge: "REST", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" },
+            { id: 13, name: "Round 3 Finisher", phase: "FINISHER 3", duration: 120, station: "STATION C", color: "gold", badge: "STATION C", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 14, name: "Rest / Transition", phase: "STATION ROTATION", duration: 60, station: "TRANSITION", color: "rest", badge: "TRANSITION", targetZone: "GREEN", targetZoneDesc: "GREEN (60-70%)" },
+
+            // Round 4
+            { id: 15, name: "Round 4 AMRAP", phase: "WORK - AMRAP 4", duration: 180, station: "STATION D", color: "gold", badge: "STATION D", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 16, name: "Round 4 Midway Rest", phase: "MIDWAY REST", duration: 60, station: "STATION D", color: "rest", badge: "REST", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" },
+            { id: 17, name: "Round 4 Finisher", phase: "FINISHER 4", duration: 120, station: "STATION D", color: "gold", badge: "STATION D", targetZone: "RED", targetZoneDesc: "RED (85-100%)" },
+            { id: 18, name: "Rest / Transition", phase: "WORKOUT COMPLETE", duration: 60, station: "COOL DOWN PREP", color: "rest", badge: "REST", targetZone: "GREEN", targetZoneDesc: "GREEN (60-70%)" },
+
+            // Cooldown
+            { id: 19, name: "Cooldown", phase: "COOLDOWN", duration: 300, station: "GENERAL", color: "prep", badge: "RECOVERY", targetZone: "BLUE", targetZoneDesc: "BLUE (<60%)" }
+        ];
+
+        let workoutSchedule = JSON.parse(JSON.stringify(DEFAULT_WORKOUT_SCHEDULE));
+        let currentIndex = 0;
+        let timeRemaining = workoutSchedule[0].duration;
+        let isRunning = false;
+        let timerInterval = null;
+        let soundEnabled = true;
+
+        // --- ATHLETES & POLAR HR TELEMETRY STATE ---
+        let athletes = [];
+
+        // Audio Context
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function playBeep(freq = 440, duration = 0.15, type = 'sine') {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playStartBeep() { playBeep(880, 0.4, 'triangle'); }
+        function playCountdownBeep() { playBeep(440, 0.15, 'sine'); }
+
+        // --- POLAR HR BLUETOOTH PAIRING ---
+        async function pairPolarDevice() {
+            if (athletes.length >= 10) {
+                alert("Maximum limit of 10 participants reached.");
+                return;
+            }
+
+            if (!navigator.bluetooth) {
+                alert("Web Bluetooth API is not supported in this browser environment. Use demo tiles or Chrome/Edge over HTTPS.");
+                return;
+            }
+
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['heart_rate'] }]
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('heart_rate');
+                const characteristic = await service.getCharacteristic('heart_rate_measurement');
+
+                const newAthlete = createAthleteObject(device.name || "Polar Athlete", device.id);
+                athletes.push(newAthlete);
+                renderHrTiles();
+
+                await characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                    const value = event.target.value;
+                    const flags = value.getUint8(0);
+                    let hr = (flags & 0x01) === 0 ? value.getUint8(1) : value.getUint16(1, true);
+                    updateAthleteHeartRate(newAthlete.id, hr);
+                });
+
+            } catch (err) {
+                console.log("Bluetooth Connection cancelled or error:", err);
+            }
+        }
+
+        function createAthleteObject(name, deviceId = null) {
+            const id = 'ath_' + Math.random().toString(36).substr(2, 9);
+            const hrMax = 190;
+            return {
+                id,
+                deviceId,
+                name,
+                hrMax,
+                weightKg: 75,
+                currentHr: 125,
+                calories: 0,
+                isSimulated: !deviceId,
+                zoneMin: {
+                    blue: 100,
+                    green: 125,
+                    amber: 155,
+                    red: 170
+                },
+                zoneSeconds: {
+                    blue: 0,
+                    green: 0,
+                    amber: 0,
+                    red: 0
+                }
+            };
+        }
+
+        function addSimulatedAthlete() {
+            if (athletes.length >= 10) {
+                alert("Maximum limit of 10 participants reached.");
+                return;
+            }
+            const names = ["Coach Alex", "Sarah M.", "James K.", "Elena R.", "Marcus B.", "David P.", "Jessica W.", "Tom R.", "Chloe S.", "Liam N."];
+            const name = names[athletes.length % names.length] + ` (#${athletes.length + 1})`;
+            const ath = createAthleteObject(name);
+            athletes.push(ath);
+            renderHrTiles();
+        }
+
+        function updateAthleteHeartRate(id, hr) {
+            const ath = athletes.find(a => a.id === id);
+            if (ath) {
+                ath.currentHr = hr;
+                updateHrTileUI(ath);
+            }
+        }
+
+        function getAthleteZone(ath) {
+            const hr = ath.currentHr;
+            if (hr >= ath.zoneMin.red) return 'red';
+            if (hr >= ath.zoneMin.amber) return 'amber';
+            if (hr >= ath.zoneMin.green) return 'green';
+            return 'blue';
+        }
+
+        // --- RENDER & UPDATE TELEMETRY GRID ---
+        function renderHrTiles() {
+            const container = document.getElementById('hrGridContainer');
+            const count = athletes.length;
+            document.getElementById('connectedCountBadge').innerText = `${count} / 10 ATHLETES CONNECTED`;
+
+            if (count === 0) {
+                container.className = "flex-1 grid grid-cols-1 overflow-hidden min-h-0 h-full";
+                container.innerHTML = `
+                    <div class="h-full glass-panel rounded-xl p-8 flex flex-col items-center justify-center text-center text-gray-400 space-y-3 border-dashed border-2 border-white/10">
+                        <i class="fa-solid fa-heart-circle-plus text-4xl text-gray-500"></i>
+                        <span class="text-sm font-bold tracking-wider">NO POLAR HR MONITORS CONNECTED</span>
+                        <p class="text-xs text-gray-500 max-w-sm">Click "PAIR POLAR HR" to connect Bluetooth devices or "+ DEMO HR" to test telemetry (max 10).</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Adaptive layout based on participant count (up to 10)
+            if (count <= 2) {
+                container.className = "flex-1 grid grid-cols-1 grid-rows-2 gap-2 overflow-hidden min-h-0 h-full";
+            } else if (count <= 4) {
+                container.className = "flex-1 grid grid-cols-2 grid-rows-2 gap-2 overflow-hidden min-h-0 h-full";
+            } else if (count <= 6) {
+                container.className = "flex-1 grid grid-cols-2 grid-rows-3 gap-2 overflow-hidden min-h-0 h-full";
+            } else if (count <= 8) {
+                container.className = "flex-1 grid grid-cols-2 grid-rows-4 gap-2 overflow-hidden min-h-0 h-full";
+            } else {
+                // 9 to 10 participants
+                container.className = "flex-1 grid grid-cols-2 grid-rows-5 gap-1.5 overflow-hidden min-h-0 h-full";
+            }
+
+            container.innerHTML = athletes.map(ath => {
+                const zone = getAthleteZone(ath);
+                const pct = Math.round((ath.currentHr / ath.hrMax) * 100);
+
+                // Compact layout scaling based on athlete count
+                const isCompact = count > 4;
+                const isUltraCompact = count > 6;
+
+                return `
+                    <div id="tile_${ath.id}" class="glass-panel rounded-xl ${isUltraCompact ? 'p-1.5' : isCompact ? 'p-2.5' : 'p-3.5'} flex flex-col justify-between border-2 transition-all duration-300 hr-card-${zone} overflow-hidden h-full">
+                        <div class="flex justify-between items-center shrink-0">
+                            <div class="truncate pr-1">
+                                <h4 class="${isUltraCompact ? 'text-sm' : isCompact ? 'text-base' : 'text-lg'} font-black text-white tracking-wide truncate">${ath.name}</h4>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <span class="text-[9px] text-gray-400 font-bold uppercase">${pct}%</span>
+                                <button onclick="openAthleteConfigModal('${ath.id}')" class="p-1 rounded text-gray-400 hover:text-white hover:bg-white/10">
+                                    <i class="fa-solid fa-gear text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="my-auto flex items-baseline justify-between leading-none">
+                            <div class="flex items-baseline gap-1">
+                                <span id="hrval_${ath.id}" class="${isUltraCompact ? 'text-2xl md:text-3xl' : isCompact ? 'text-3xl md:text-4xl' : 'text-4xl md:text-5xl'} font-extrabold text-white font-timer">${ath.currentHr}</span>
+                                <span class="text-[10px] text-gray-400 font-bold">BPM</span>
+                            </div>
+
+                            <div>
+                                <span id="zoneLabel_${ath.id}" class="px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase text-black bg-zone-${zone}">
+                                    ${zone.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-white/10 pt-1 flex justify-between items-center text-[10px] font-bold text-gray-300 shrink-0">
+                            <span>CAL:</span>
+                            <span id="cal_${ath.id}" class="text-xs font-black text-white">${Math.floor(ath.calories)} KCAL</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateHrTileUI(ath) {
+            const tile = document.getElementById(`tile_${ath.id}`);
+            if (!tile) return;
+
+            const zone = getAthleteZone(ath);
+            const pct = Math.round((ath.currentHr / ath.hrMax) * 100);
+
+            const count = athletes.length;
+            const isCompact = count > 4;
+            const isUltraCompact = count > 6;
+
+            tile.className = `glass-panel rounded-xl ${isUltraCompact ? 'p-1.5' : isCompact ? 'p-2.5' : 'p-3.5'} flex flex-col justify-between border-2 transition-all duration-300 hr-card-${zone} overflow-hidden h-full`;
+            document.getElementById(`hrval_${ath.id}`).innerText = ath.currentHr;
+            document.getElementById(`cal_${ath.id}`).innerText = `${Math.floor(ath.calories)} KCAL`;
+
+            const zLabel = document.getElementById(`zoneLabel_${ath.id}`);
+            zLabel.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase text-black bg-zone-${zone}`;
+            zLabel.innerText = zone.toUpperCase();
+        }
+
+        // --- ATHLETE EDIT MODAL LOGIC ---
+        function openAthleteConfigModal(id) {
+            const ath = athletes.find(a => a.id === id);
+            if (!ath) return;
+
+            document.getElementById('editAthleteId').value = ath.id;
+            document.getElementById('editAthleteName').value = ath.name;
+            document.getElementById('editAthleteHrMax').value = ath.hrMax;
+            document.getElementById('editAthleteWeight').value = ath.weightKg;
+
+            document.getElementById('zoneBlueMin').value = ath.zoneMin.blue;
+            document.getElementById('zoneGreenMin').value = ath.zoneMin.green;
+            document.getElementById('zoneAmberMin').value = ath.zoneAmberMin || ath.zoneMin.amber;
+            document.getElementById('zoneRedMin').value = ath.zoneMin.red;
+
+            document.getElementById('athleteConfigModal').classList.remove('hidden');
+        }
+
+        function closeAthleteConfigModal() {
+            document.getElementById('athleteConfigModal').classList.add('hidden');
+        }
+
+        function recalculateZonesFromMax() {
+            const max = parseInt(document.getElementById('editAthleteHrMax').value) || 190;
+            document.getElementById('zoneBlueMin').value = Math.round(max * 0.50);
+            document.getElementById('zoneGreenMin').value = Math.round(max * 0.65);
+            document.getElementById('zoneAmberMin').value = Math.round(max * 0.80);
+            document.getElementById('zoneRedMin').value = Math.round(max * 0.90);
+        }
+
+        function saveAthleteConfig() {
+            const id = document.getElementById('editAthleteId').value;
+            const ath = athletes.find(a => a.id === id);
+            if (ath) {
+                ath.name = document.getElementById('editAthleteName').value;
+                ath.hrMax = parseInt(document.getElementById('editAthleteHrMax').value);
+                ath.weightKg = parseFloat(document.getElementById('editAthleteWeight').value);
+                ath.zoneMin.blue = parseInt(document.getElementById('zoneBlueMin').value);
+                ath.zoneMin.green = parseInt(document.getElementById('zoneGreenMin').value);
+                ath.zoneMin.amber = parseInt(document.getElementById('zoneAmberMin').value);
+                ath.zoneMin.red = parseInt(document.getElementById('zoneRedMin').value);
+                renderHrTiles();
+            }
+            closeAthleteConfigModal();
+        }
+
+        function removeAthleteTile() {
+            const id = document.getElementById('editAthleteId').value;
+            athletes = athletes.filter(a => a.id !== id);
+            renderHrTiles();
+            closeAthleteConfigModal();
+        }
+
+        // --- DEFAULT BOARD SVG ---
+        function generateDefaultBoardSVG() {
+            const svgString = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="100%" height="100%">
+                <rect width="1200" height="675" fill="#0B0C10"/>
+                <text x="600" y="65" font-family="'Bebas Neue', sans-serif" font-size="54" font-weight="bold" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">CONDITIONING</text>
+                
+                <!-- Station A -->
+                <line x1="300" y1="100" x2="300" y2="640" stroke="#333" stroke-width="2"/>
+                <text x="150" y="125" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">STATION A</text>
+                <text x="150" y="165" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">AMRAP:</text>
+                <text x="150" y="215" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 KB Swings +</text>
+                <text x="150" y="260" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 Burpees</text>
+                <text x="150" y="400" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">FINISHER:</text>
+                <text x="150" y="445" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Max Kcal</text>
+                <text x="150" y="490" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Assault Bike</text>
+
+                <!-- Station B -->
+                <line x1="600" y1="100" x2="600" y2="640" stroke="#333" stroke-width="2"/>
+                <text x="450" y="125" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">STATION B</text>
+                <text x="450" y="165" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">AMRAP:</text>
+                <text x="450" y="215" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 Wall Balls +</text>
+                <text x="450" y="260" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 DB Thruster</text>
+                <text x="450" y="400" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">FINISHER:</text>
+                <text x="450" y="445" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Max Kcal</text>
+                <text x="450" y="490" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Ski-Erg</text>
+
+                <!-- Station C -->
+                <line x1="900" y1="100" x2="900" y2="640" stroke="#333" stroke-width="2"/>
+                <text x="750" y="125" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">STATION C</text>
+                <text x="750" y="165" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">AMRAP:</text>
+                <text x="750" y="215" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 Slam Balls +</text>
+                <text x="750" y="260" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 Ring Rows</text>
+                <text x="750" y="400" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">FINISHER:</text>
+                <text x="750" y="445" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Max Distance</text>
+                <text x="750" y="490" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Sled Push</text>
+
+                <!-- Station D -->
+                <text x="1050" y="125" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">STATION D</text>
+                <text x="1050" y="165" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">AMRAP:</text>
+                <text x="1050" y="215" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 DB Snatch +</text>
+                <text x="1050" y="260" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">10 Step Overs</text>
+                <text x="1050" y="400" font-family="'Bebas Neue', sans-serif" font-size="36" fill="#FFFFFF" text-anchor="middle">FINISHER:</text>
+                <text x="1050" y="445" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Max Kcal</text>
+                <text x="1050" y="490" font-family="'Bebas Neue', sans-serif" font-size="32" fill="#FFFFFF" text-anchor="middle">Treadmill</text>
+            </svg>`;
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function calculateTotalRemaining() {
+            let total = timeRemaining;
+            for (let i = currentIndex + 1; i < workoutSchedule.length; i++) {
+                total += workoutSchedule[i].duration;
+            }
+            return total;
+        }
+
+        function updateUI() {
+            const item = workoutSchedule[currentIndex];
+            document.getElementById('timerDisplay').innerText = formatTime(timeRemaining);
+            document.getElementById('totalTimeRemaining').innerText = `TOTAL REMAINING: ${formatTime(calculateTotalRemaining())}`;
+
+            document.getElementById('currentStepNum').innerText = currentIndex + 1;
+            document.getElementById('totalStepsNum').innerText = workoutSchedule.length;
+
+            document.getElementById('stationLabel').innerText = item.station;
+            document.getElementById('currentExerciseTitle').innerText = item.name;
+            document.getElementById('stationBadge').innerText = item.station;
+
+            // Target HR Zone Badge Styling
+            const zBadge = document.getElementById('targetZoneBadge');
+            zBadge.innerText = item.targetZoneDesc || "GREEN (60-70%)";
+            if (item.targetZone === 'RED') zBadge.className = "px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-zone-red text-white";
+            else if (item.targetZone === 'AMBER') zBadge.className = "px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-zone-amber text-black";
+            else if (item.targetZone === 'GREEN') zBadge.className = "px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-zone-green text-black";
+            else zBadge.className = "px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-zone-blue text-black";
+        }
+
+        // --- TIMER ENGINE & SECONDLY TELEMETRY ACCUMULATION ---
+        function tick() {
+            if (timeRemaining > 0) {
+                timeRemaining--;
+                if (timeRemaining <= 3 && timeRemaining > 0) playCountdownBeep();
+                
+                // Accumulate Telemetry & Simulated HR fluctuate
+                accumulateAthleteTelemetry();
+
+                updateUI();
+            } else {
+                playStartBeep();
+                if (currentIndex < workoutSchedule.length - 1) {
+                    currentIndex++;
+                    timeRemaining = workoutSchedule[currentIndex].duration;
+                    updateUI();
+                } else {
+                    pauseTimer();
+                    openLeaderboardModal();
+                }
+            }
+        }
+
+        function accumulateAthleteTelemetry() {
+            const currentItem = workoutSchedule[currentIndex];
+            let totalGroupCals = 0;
+
+            athletes.forEach(ath => {
+                // Fluctuate simulated HR towards Target Zone
+                if (ath.isSimulated) {
+                    let targetBpm = ath.zoneMin.green;
+                    if (currentItem.targetZone === 'RED') targetBpm = ath.zoneMin.red + Math.floor(Math.random() * 10);
+                    else if (currentItem.targetZone === 'AMBER') targetBpm = ath.zoneMin.amber + 5;
+                    else if (currentItem.targetZone === 'BLUE') targetBpm = ath.zoneMin.blue - 5;
+
+                    if (ath.currentHr < targetBpm) ath.currentHr += 1;
+                    else if (ath.currentHr > targetBpm) ath.currentHr -= 1;
+                }
+
+                // Calorie Burn Estimation Formula based on HR & Weight
+                const calPerSec = ((ath.currentHr * 0.2017) + (ath.weightKg * 0.1988) - 10.3) / 2400;
+                ath.calories += Math.max(0.02, calPerSec);
+                totalGroupCals += ath.calories;
+
+                // Zone Time Tracking
+                const z = getAthleteZone(ath);
+                ath.zoneSeconds[z]++;
+
+                updateHrTileUI(ath);
+            });
+
+            document.getElementById('totalGroupCaloriesHeader').innerText = `${Math.floor(totalGroupCals)} KCAL`;
+        }
+
+        function togglePlayPause() {
+            if (isRunning) pauseTimer();
+            else startTimer();
+        }
+
+        function startTimer() {
+            getAudioContext();
+            isRunning = true;
+            document.getElementById('playPauseText').innerText = "PAUSE";
+            document.getElementById('playPauseIcon').className = "fa-solid fa-pause";
+            timerInterval = setInterval(tick, 1000);
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            document.getElementById('playPauseText').innerText = "RESUME";
+            document.getElementById('playPauseIcon').className = "fa-solid fa-play";
+            clearInterval(timerInterval);
+        }
+
+        function nextInterval() {
+            if (currentIndex < workoutSchedule.length - 1) {
+                currentIndex++;
+                timeRemaining = workoutSchedule[currentIndex].duration;
+                updateUI();
+            }
+        }
+
+        function prevInterval() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                timeRemaining = workoutSchedule[currentIndex].duration;
+                updateUI();
+            }
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            currentIndex = 0;
+            timeRemaining = workoutSchedule[0].duration;
+            document.getElementById('playPauseText').innerText = "START TIMER";
+            document.getElementById('playPauseIcon').className = "fa-solid fa-play";
+            updateUI();
+        }
+
+        // LEADERBOARD MODAL RENDER
+        function openLeaderboardModal() {
+            const tbody = document.getElementById('leaderboardTableBody');
+            let totalGroupCals = 0;
+
+            // Sort athletes by calories burned descending
+            const sortedAthletes = [...athletes].sort((a, b) => b.calories - a.calories);
+
+            tbody.innerHTML = sortedAthletes.map((ath, idx) => {
+                totalGroupCals += ath.calories;
+                return `
+                    <tr class="hover:bg-white/5 transition-all">
+                        <td class="py-3.5 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-white/10 text-xs flex items-center justify-center font-black">${idx + 1}</span>
+                            <span class="text-white font-bold">${ath.name}</span>
+                        </td>
+                        <td class="text-center font-black text-amber-400 text-base">${Math.floor(ath.calories)} KCAL</td>
+                        <td class="text-center text-red-400">${formatTime(ath.zoneSeconds.red)}</td>
+                        <td class="text-center text-amber-400">${formatTime(ath.zoneSeconds.amber)}</td>
+                        <td class="text-center text-green-400">${formatTime(ath.zoneSeconds.green)}</td>
+                        <td class="text-center text-blue-400">${formatTime(ath.zoneSeconds.blue)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('lbTotalAthletes').innerText = athletes.length;
+            document.getElementById('lbTotalCalories').innerText = `${Math.floor(totalGroupCals)} KCAL`;
+            document.getElementById('leaderboardModal').classList.remove('hidden');
+        }
+
+        function closeLeaderboardModal() {
+            document.getElementById('leaderboardModal').classList.add('hidden');
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled ? "fa-solid fa-volume-high text-sm text-white" : "fa-solid fa-volume-xmark text-sm text-gray-500";
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => {});
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+
+        function toggleSettingsDrawer() {
+            const drawer = document.getElementById('settingsDrawer');
+            const isOpening = drawer.classList.contains('translate-x-full');
+            if (isOpening) {
+                renderSequenceEditor();
+            }
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        // Render editable inputs for every step (Name, Duration in mm:ss or seconds, Station, Target HR Zone)
+        function renderSequenceEditor() {
+            const container = document.getElementById('sequenceList');
+            container.innerHTML = workoutSchedule.map((item, idx) => `
+                <div class="bg-black/60 p-3 rounded-xl border border-white/10 space-y-2 relative group">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-black text-gray-400 w-6">#${idx + 1}</span>
+                        <input type="text" value="${item.name}" onchange="updateScheduleField(${idx}, 'name', this.value)" class="flex-1 bg-black/80 border border-white/10 rounded px-2 py-1 text-xs text-white font-bold focus:border-white">
+                        <button onclick="removeInterval(${idx})" class="text-gray-500 hover:text-red-400 p-1" title="Delete Step">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Duration (Sec)</label>
+                            <input type="number" value="${item.duration}" onchange="updateScheduleField(${idx}, 'duration', parseInt(this.value) || 30)" class="w-full bg-black/80 border border-white/10 rounded px-2 py-1 text-xs text-white font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Station Label</label>
+                            <input type="text" value="${item.station}" onchange="updateScheduleField(${idx}, 'station', this.value)" class="w-full bg-black/80 border border-white/10 rounded px-2 py-1 text-xs text-white font-bold">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block">Target HR Zone</label>
+                            <select onchange="updateScheduleZone(${idx}, this.value)" class="w-full bg-black/80 border border-white/10 rounded px-1 py-1 text-xs text-white font-bold">
+                                <option value="RED" ${item.targetZone === 'RED' ? 'selected' : ''}>RED (85-100%)</option>
+                                <option value="AMBER" ${item.targetZone === 'AMBER' ? 'selected' : ''}>AMBER (70-85%)</option>
+                                <option value="GREEN" ${item.targetZone === 'GREEN' ? 'selected' : ''}>GREEN (60-70%)</option>
+                                <option value="BLUE" ${item.targetZone === 'BLUE' ? 'selected' : ''}>BLUE (&lt;60%)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateScheduleField(index, field, value) {
+            workoutSchedule[index][field] = value;
+        }
+
+        function updateScheduleZone(index, zone) {
+            workoutSchedule[index].targetZone = zone;
+            if (zone === 'RED') workoutSchedule[index].targetZoneDesc = "RED (85-100%)";
+            else if (zone === 'AMBER') workoutSchedule[index].targetZoneDesc = "AMBER (70-85%)";
+            else if (zone === 'GREEN') workoutSchedule[index].targetZoneDesc = "GREEN (60-70%)";
+            else workoutSchedule[index].targetZoneDesc = "BLUE (<60%)";
+        }
+
+        function addNewInterval() {
+            const newId = workoutSchedule.length + 1;
+            workoutSchedule.push({
+                id: newId,
+                name: `New Step ${newId}`,
+                phase: "WORK",
+                duration: 60,
+                station: "STATION A",
+                color: "gold",
+                badge: "WORK",
+                targetZone: "RED",
+                targetZoneDesc: "RED (85-100%)"
+            });
+            renderSequenceEditor();
+        }
+
+        function removeInterval(index) {
+            if (workoutSchedule.length <= 1) {
+                alert("The workout schedule must have at least one step.");
+                return;
+            }
+            workoutSchedule.splice(index, 1);
+            if (currentIndex >= workoutSchedule.length) {
+                currentIndex = workoutSchedule.length - 1;
+            }
+            renderSequenceEditor();
+        }
+
+        function saveAndCloseDrawer() {
+            toggleSettingsDrawer();
+            if (currentIndex >= workoutSchedule.length) currentIndex = 0;
+            timeRemaining = workoutSchedule[currentIndex].duration;
+            updateUI();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = evt => document.getElementById('workoutBoardImage').src = evt.target.result;
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.onload = function () {
+            document.getElementById('workoutBoardImage').src = generateDefaultBoardSVG();
+            // Pre-seed demo athletes for ready deployment
+            athletes.push(createAthleteObject("Coach Alex"));
+            athletes.push(createAthleteObject("Sarah M."));
+            renderHrTiles();
+            updateUI();
+        };
+    </script>
+</body>
+</html>
